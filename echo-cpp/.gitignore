@@ -71,3 +71,4 @@ Thumbs.db
 *.dll
 *.exe
 build-echo-cpp-Desktop-Default/
+CMakeLists.txt.user

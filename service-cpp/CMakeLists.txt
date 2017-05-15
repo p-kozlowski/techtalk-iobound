@@ -1,0 +1,12 @@
+project(service-cpp)
+cmake_minimum_required(VERSION 3.5)
+aux_source_directory(. SRC_LIST)
+add_executable(${PROJECT_NAME} ${SRC_LIST})
+find_package(PkgConfig)
+set( ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:/home/piotr/code/seastar/build/release" )
+pkg_search_module(SEASTAR REQUIRED seastar)
+#target_link_libraries(service-cpp ${SEASTAR_LIBRARIES})
+
+target_include_directories(service-cpp PUBLIC ${SEASTAR_INCLUDE_DIRS})
+target_compile_options(service-cpp PUBLIC ${SEASTAR_CFLAGS_OTHER})
+target_link_libraries(service-cpp PUBLIC ${SEASTAR_LDFLAGS})

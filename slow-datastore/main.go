@@ -44,7 +44,7 @@ func handleRequest(conn net.Conn) {
 
 	message, err := bufio.NewReader(conn).ReadString('\n')
 	if err != nil {
-		fmt.Println("Error reading:", err.Error())
+		fmt.Println("Error reading:", err.Error(), message)
 		return
 	}
 	time.Sleep(time.Duration(5) * time.Millisecond)

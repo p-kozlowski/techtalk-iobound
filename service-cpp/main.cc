@@ -39,17 +39,22 @@ public:
 
     future<std::unique_ptr<reply>> handle(const sstring& path,
             std::unique_ptr<request> req, std::unique_ptr<reply> rep) override {
-        auto addr = ipv4_addr("127.0.0.1", 3333);
-        return connect(addr).then([req = std::move(req), rep = std::move(rep)](connected_socket s) mutable {
-            auto name = req->param["name"];
-            auto out = s.output();
-            return do_with(std::move(s), std::move(out), std::move(name), [rep = std::move(rep)](auto &s, auto &out, auto &name) mutable {
-                return out.write(name+sstring("\n")).then([&s, &out, rep = std::move(rep)]() mutable {
-                    return out.close().then([&s, rep = std::move(rep)]() mutable {
-                        return s.input().read().then([rep = std::move(rep)](auto data) mutable {
-                            rep->_content = sstring("Hello, ") + sstring(data.get(), data.size());
-                            rep->done("html");
-                            return make_ready_future<std::unique_ptr<reply>>(std::move(rep));
+        auto name = req->param["name"];
+        return connect(this->dataStoreAddr).then([name, req = std::move(req), rep = std::move(rep)](connected_socket s) mutable {
+            return do_with(std::move(s), [name, rep = std::move(rep)](connected_socket& s) mutable {
+                return do_with(s.output(), [name, &s, rep = std::move(rep)](auto& os) mutable {
+                    auto f = os.write(name+sstring("\n"));
+                    return f.then([&s, &os, rep = std::move(rep)]() mutable {
+                        auto f = os.flush();
+                        return f.then([&s, &os,rep = std::move(rep)]() mutable {
+                            return do_with(s.input(), [rep = std::move(rep)](auto& in) mutable {
+                                auto f = in.read();
+                                return f.then([rep = std::move(rep)](temporary_buffer<char> buf) mutable {
+                                    rep->_content = sstring("Hello, ") + sstring(buf.get(), buf.size());
+                                    rep->done("html");
+                                    return make_ready_future<std::unique_ptr<reply>>(std::move(rep));
+                                });
+                            });
                         });
                     });
                 });
@@ -73,9 +78,10 @@ int main(int ac, char** av) {
 
         auto server = new http_server_control();
         server->start().then([server, &config] {
-            const uint16_t datastorePort = config["datastorePort"].as<uint16_t>();
-            const std::string datastoreAddr = config["datastoreAddr"].as<std::string>();
-            return server->set_routes([&datastoreAddr, &datastorePort](routes& r) {
+            const uint16_t datastorePort = config["datastore-port"].as<uint16_t>();
+            const std::string datastoreAddr = config["datastore-addr"].as<std::string>();
+            seastar_logger.info("Config: %s:%d", datastoreAddr.c_str(), datastorePort);
+            return server->set_routes([datastoreAddr, datastorePort](routes& r) {
                 r.add(operation_type::GET, url("/users").remainder("name"), new UserHandler{datastoreAddr, datastorePort});
             });
         }).then([server, port] {

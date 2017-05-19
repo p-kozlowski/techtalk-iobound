@@ -8,10 +8,13 @@ import (
 	"net"
 	"bufio"
 	"strings"
+	"flag"
 )
 
+var datastoreAddr string
+
 func getUser(c echo.Context) error {
-	conn, err := net.Dial("tcp", "127.0.0.1:3333")
+	conn, err := net.Dial("tcp", datastoreAddr)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "Error connecting to the datastore")
 	}
@@ -27,12 +30,24 @@ func getUser(c echo.Context) error {
 	return c.String(http.StatusOK, fmt.Sprintf("Hi, %s!", strings.TrimSpace(greeting)))
 }
 
+const (
+	DATASTORE_HOST = "localhost"
+	DATASTORE_PORT = "3333"
+)
+
 func main() {
+	datastoreHost := flag.String("datastore-host", DATASTORE_HOST, "IP address of the datastore")
+	datastorePort := flag.String("datastore-port", DATASTORE_PORT, "port of the datastore")
+
+	flag.Parse()
+
+	datastoreAddr = *datastoreHost+":"+*datastorePort
+
 	// Echo instance
 	e := echo.New()
 
 	// Middleware
-	e.Use(middleware.Logger())
+	//e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
 	// Routes
